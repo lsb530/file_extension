@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang='ko'>
+<head>
+  <meta charset='UTF-8'>
+  <title>파일 확장자 필터링</title>
+  <style>
+    .main {
+      /*display: flex;*/
+      /*flex-direction: column;*/
+      width: 50%;
+    }
+
+    .main > .title {
+      text-align: center;
+    }
+
+    .main > .sub-title {
+      text-align: center;
+    }
+
+    .main > .content {
+      display: flex;
+      flex-direction: row;
+      height: 400px;
+    }
+
+    .main > .content > .left {
+      width: 25%;
+      /*background: red;*/
+      text-align: center;
+    }
+
+    .main > .content > .right {
+      width: 75%;
+      /*background: blue;*/
+    }
+
+    .extension_block {
+      margin: auto;
+      padding: 1.5rem;
+    }
+
+    .fixed_extension > input[type=checkbox] {
+      margin: 1.5rem 0.5rem 0.7rem 0.5rem;
+      padding: 1.5rem;
+    }
+
+    #custom_input {
+      margin: 2.2rem auto auto 1.2rem;
+      width: 70%;
+      height: 1.2rem;
+    }
+
+    #add_extension {
+      border-radius: 15%;
+      margin: 0.6rem;
+      padding: 4px;
+      background: darkgray;
+      color: white;
+    }
+
+    .added_data {
+      display: flex;
+      flex-wrap: wrap;
+      width: 90%;
+      margin: 2rem 1.5rem 1.5rem 1.5rem; /* 상우하좌 */
+      padding: 5px;
+      border-style: solid;
+      border-color: darkgray;
+    }
+
+    .added_data > span {
+      margin: 1.1rem;
+      border: solid darkgray;
+      color: gray;
+      font-size: 0.8rem;
+      height: 10%;
+    }
+
+    .delete_item {
+      color: black;
+      font-size: 1rem;
+    }
+
+  </style>
+  <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+  <script type="text/javascript">
+
+    const addOnClickEventToElement = (elem, fn) => {
+      elem.onclick = fn;
+    }
+
+    function removeItem(elem) {
+      const extension = elem.parentNode.innerText.replace("X","").trim();
+      return axios
+        .delete(`http://localhost:8080/custom/${extension}`)
+        .then(res => {
+          elem.parentNode.remove();
+          return countingItems();
+        })
+        .catch(err => alert('삭제 과정 중 에러가 발생했습니다'));
+    }
+
+    const initItems = async () => {
+      axios
+      .get('http://localhost:8080/basics')
+      .then(res => {
+        const response = res.data;
+        const extensions = response.map(r => r.extension);
+        extensions.forEach(
+            ex => {
+              const fixedCheckBox = document.querySelectorAll('.fixed_extension > input[type=checkbox]');
+              for (const fc of fixedCheckBox) {
+                if(ex === fc.value.toUpperCase()) {
+                  fc.checked = true;
+                }
+              }
+            }
+        )
+      });
+
+      const customExtensions = await axios
+      .get('http://localhost:8080/customs')
+      .then(res => {
+        const response = res.data;
+        return response.map(r => r.extension);
+      });
+      // console.log(customExtensions);
+
+      const addedData = document.getElementsByClassName('added_data');
+      customExtensions.forEach(ex => {
+        const spanElement = document.createElement("span");
+        spanElement.innerText = ex;
+        const childSpanElement = document.createElement("span");
+        childSpanElement.innerText = 'X';
+        childSpanElement.className = 'delete_item';
+        spanElement.appendChild(childSpanElement);
+        addedData[0].insertAdjacentElement('beforeend', spanElement);
+        addOnClickEventToElement(childSpanElement.parentNode, () => removeItem(childSpanElement));
+      });
+      countingItems();
+    }
+
+    const addBasicItem = (elem) => {
+      const data = {'extension': elem.target.value.toUpperCase()}
+      if(elem.target.checked) {
+        axios
+          .post('http://localhost:8080/basic', data)
+          .then(res => console.log(res))
+          .catch(err => alert('고정 확장자 추가 오류가 발생했습니다'));
+      } else {
+        axios
+          .delete(`http://localhost:8080/basic/${elem.target.value.toUpperCase()}`)
+          .then(res => console.log(res))
+          .catch(err => alert('고정 확장자 삭제 오류가 발생했습니다'));
+      }
+
+    }
+
+    const addCustomItem = () => {
+      let customInput = document.getElementById('custom_input');
+      const addedData = document.getElementsByClassName('added_data');
+
+      const korean = /[ㄱ-ㅎ|ㅏ-ㅣ가-힣]/;
+      if (korean.test(customInput.value)) {
+        alert('커스텀 확장자는 한글일 수 없습니다');
+        customInput.value = '';
+        return;
+      }
+
+      const space = /\s/g;
+      if (space.test(customInput.value)) {
+        alert('입력에 공백은 들어갈 수 없습니다');
+        customInput.value = '';
+        return;
+      }
+
+      let dataList = document.querySelectorAll('.added_data > span');
+      for (const data of dataList) {
+        let text = data.textContent.replace('X', '').trim();
+        if (text === customInput.value || text === customInput.value.toUpperCase()) {
+          alert('중복된 확장자입니다');
+          customInput.value = '';
+          return;
+        }
+      }
+
+      if (countingItems() + 1 > 200) {
+        alert('커스텀 확장자 추가는 200개까지만 가능합니다');
+        return;
+      }
+
+      const data = {'extension': customInput.value}
+      axios
+        .post('http://localhost:8080/custom', data)
+        .then(res => {
+          const spanElement = document.createElement("span");
+          spanElement.innerText = customInput.value.toUpperCase();
+          const childSpanElement = document.createElement("span");
+          childSpanElement.innerText = 'X';
+          childSpanElement.className = 'delete_item';
+          spanElement.appendChild(childSpanElement);
+          addedData[0].insertAdjacentElement('beforeend', spanElement);
+          addOnClickEventToElement(childSpanElement.parentNode, () => removeItem(childSpanElement));
+          customInput.value = '';
+          countingItems();
+        })
+        .catch(err => {
+          alert('데이터 추가 중 에러가 발생했습니다');
+          customInput.value = '';
+          return err.data;
+        });
+
+    }
+
+    const countingItems = () => {
+      let itemCount = document.getElementById('item_count');
+      let deleteItems = document.getElementsByClassName("delete_item");
+      let length = deleteItems.length;
+      itemCount.innerText = `${length}/200`;
+      return length;
+    }
+
+    const addEnterKeyEvent = (event) => {
+      if (event.defaultPrevented) {
+        return;
+      }
+      let key = event.key || event.keyCode;
+
+      if (key === 'Enter' || key === 13) {
+        return addCustomItem();
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+
+      initItems();
+
+      // const deleteItems = document.getElementsByClassName('delete_item');
+      // for (let deleteItem of deleteItems) {
+      //   addOnClickEventToElement(deleteItem.parentNode, () => removeItem(deleteItem));
+      // }
+      // countingItems();
+
+      const basicCheckBox = document.querySelectorAll("input[type='checkbox']");
+      for (const bcx of basicCheckBox) {
+        bcx.addEventListener('click', (e) => addBasicItem(e), false);
+      }
+      // console.log(basicCheckBox);
+
+      const customInput = document.getElementById('custom_input');
+      customInput.addEventListener('keyup', (event) => addEnterKeyEvent(event), false);
+    });
+  </script>
+</head>
+<body>
+<div class='main'>
+  <hr/>
+  <div class='title'>
+    <h1>◎ 파일 확장자 차단</h1>
+  </div>
+  <hr/>
+  <div class='sub-title'>
+    <h2>파일 확장자에 따라 특정 형식의 파일을 첨부하거나 전송하지 못하도록 제한</h2>
+  </div>
+  <div class='content'>
+    <div class='left'>
+      <div class="extension_block">고정 확장자</div>
+      <div class="extension_block">커스텀 확장자</div>
+    </div>
+    <div class='right'>
+      <div class="fixed_extension">
+        <input type="checkbox" value="bat">bat
+        <input type="checkbox" value="cmd">cmd
+        <input type="checkbox" value="com">com
+        <input type="checkbox" value="cpl">cpl
+        <input type="checkbox" value="exe">exe
+        <input type="checkbox" value="csr">csr
+        <input type="checkbox" value="js">js
+      </div>
+      <div class="custom_extension">
+        <input type="text" id="custom_input" placeholder="확장자 입력" maxlength="20">
+        <span id="add_extension" onclick="addCustomItem()"> +추가 </span>
+      </div>
+      <div class="added_data">
+        <div id="item_count"></div>
+<!--        <span>아아 <span class="delete_item">X</span></span>-->
+<!--        <span>우우 <span class="delete_item">X</span></span>-->
+<!--        <span>히히 <span class="delete_item">X</span></span>-->
+<!--        <span>쿠쿠 <span class="delete_item">X</span></span>-->
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
