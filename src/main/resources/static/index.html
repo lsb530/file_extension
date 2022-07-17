@@ -85,7 +85,7 @@
   </style>
   <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
   <script type="text/javascript">
-
+    const HOST = location.host;
     const addOnClickEventToElement = (elem, fn) => {
       elem.onclick = fn;
     }
@@ -93,7 +93,8 @@
     function removeItem(elem) {
       const extension = elem.parentNode.innerText.replace("X","").trim();
       return axios
-        .delete(`http://localhost:8080/custom/${extension}`)
+        // .delete(`http://localhost:8080/custom/${extension}`)
+        .delete(`${HOST}/custom/${extension}`)
         .then(res => {
           elem.parentNode.remove();
           return countingItems();
@@ -103,7 +104,7 @@
 
     const initItems = async () => {
       axios
-      .get('http://localhost:8080/basics')
+      .get(`${HOST}/basics`)
       .then(res => {
         const response = res.data;
         const extensions = response.map(r => r.extension);
@@ -120,7 +121,7 @@
       });
 
       const customExtensions = await axios
-      .get('http://localhost:8080/customs')
+      .get(`${HOST}/customs`)
       .then(res => {
         const response = res.data;
         return response.map(r => r.extension);
@@ -145,12 +146,12 @@
       const data = {'extension': elem.target.value.toUpperCase()}
       if(elem.target.checked) {
         axios
-          .post('http://localhost:8080/basic', data)
+          .post(`${HOST}/basic`, data)
           .then(res => console.log(res))
           .catch(err => alert('고정 확장자 추가 오류가 발생했습니다'));
       } else {
         axios
-          .delete(`http://localhost:8080/basic/${elem.target.value.toUpperCase()}`)
+          .delete(`${HOST}/basic/${elem.target.value.toUpperCase()}`)
           .then(res => console.log(res))
           .catch(err => alert('고정 확장자 삭제 오류가 발생했습니다'));
       }
@@ -192,7 +193,7 @@
 
       const data = {'extension': customInput.value}
       axios
-        .post('http://localhost:8080/custom', data)
+        .post(`${HOST}/custom`, data)
         .then(res => {
           const spanElement = document.createElement("span");
           spanElement.innerText = customInput.value.toUpperCase();
